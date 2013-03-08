@@ -1079,6 +1079,87 @@ public final class Launcher extends Activity
         }
     }
 
+    private void restoreShortcut(ShortcutInfo info) {
+        final View view = createShortcut(info);
+        FolderInfo folderInfo = info.mFolderInfo;
+        if (info.container >= 0 && folderInfo  != null) {
+            // The shortcut was contained by a folder
+            // It's necessary to recreate the folder or just to add to the existing one?
+            CellLayout layout = getCellLayout(folderInfo.container, folderInfo.screen);
+            View v = layout.getChildAt(folderInfo.cellX, folderInfo.cellY);
+            if (v == null) {
+                // Weird. Should not there be a shortcut or folder here?
+                return;
+            }
+            if (v.getTag() != null && v.getTag() instanceof ShortcutInfo) {
+                // Create a new folder
+                ShortcutInfo target = (ShortcutInfo)v.getTag();
+                // Remove the target item to allow to be occupied by the folder
+                layout.removeView(v);
+
+                // Create the folder and its new items
+                FolderIcon fi = addFolder(
+                                    layout, folderInfo.container, folderInfo.screen,
+                                    folderInfo.cellX, folderInfo.cellY);
+                int cellX = info.cellX;
+                int cellY = info.cellY;
+                info.cellX = -1;
+                info.cellY = -1;
+                target.cellX = -1;
+                target.cellY = -1;
+                if (cellX == 0 && cellY == 0) {
+                    fi.addItem(info);
+                    fi.addItem(target);
+                } else {
+                    fi.addItem(target);
+                    fi.addItem(info);
+                }
+            }
+        } else if (info.container >= 0) {
+            // The shortcut was contained by a folder and the folder still exists
+            FolderIcon folderIcon = null;
+
+            // We need to find the container in the workspace, because the shortcut has lost
+            // its information
+            ArrayList<ShortcutAndWidgetContainer> allSwc =
+                    mWorkspace.getAllShortcutAndWidgetContainers();
+            for (ShortcutAndWidgetContainer swc : allSwc) {
+                int cc = swc.getChildCount();
+                for (int i = 0; i < cc; i++) {
+                    View v = swc.getChildAt(i);
+                    if (v instanceof FolderIcon) {
+                        FolderInfo fi = (FolderInfo)v.getTag();
+                        if (fi != null && fi.id == info.container) {
+                            folderIcon = (FolderIcon)v;
+                            break;
+                        }
+                    }
+                }
+                if (folderIcon != null) {
+                    break;
+                }
+            }
+
+            if (folderIcon != null) {
+                folderIcon.addItem(info);
+            }
+
+        } else {
+            // Just restore the shortcut in its last position
+            long container = info.container;
+            int screen = info.screen;
+            int cellX = info.cellX;
+            int cellY = info.cellY;
+            int spanX = info.spanX;
+            int spanY = info.spanY;
+            mWorkspace.addInScreen(view, container, screen, cellX, cellY,
+                    spanX, spanY, isWorkspaceLocked());
+        }
+
+        // The folder info is not needed any more
+        info.mFolderInfo = null;
+    }
+
     /**
      * Add a shortcut to the workspace.
      *
@@ -1336,6 +1417,9 @@ public final class Launcher extends Activity
             // When Launcher comes back to foreground, a different Activity might be responsible for
             // the app market intent, so refresh the icon
             updateAppMarketIcon();
+            // When Launcher comes back to foreground, a different Launcher might be made default
+            // so refresh the icon
+            updateOverflowMenuButton();
             clearTypedText();
         }
     }
@@ -2149,7 +2233,7 @@ public final class Launcher extends Activity
         }
     }
 
-    void startShortcutUninstallActivity(ShortcutInfo shortcutInfo) {
+    void startShortcutUninstallActivity(final ShortcutInfo shortcutInfo) {
         PackageManager pm = getPackageManager();
         ResolveInfo resolveInfo = pm.resolveActivity(shortcutInfo.intent, 0);
         if ((resolveInfo.activityInfo.applicationInfo.flags &
@@ -2167,6 +2251,16 @@ public final class Launcher extends Activity
                     Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
             startActivity(intent);
         }
+
+        // Restore the shortcut view prior to uninstall. Otherwise if the
+        // use cancels the uninstall process, the shortcut was removed from
+        // the workspace
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                restoreShortcut(shortcutInfo);
+            }
+        });
     }
 
     boolean startActivity(View v, Intent intent, Object tag) {
@@ -3314,17 +3408,7 @@ public final class Launcher extends Activity
         // Find the app market activity by resolving an intent.
         // (If multiple app markets are installed, it will return the ResolverActivity.)
         ComponentName activityName = intent.resolveActivity(getPackageManager());
-
-        // Check to see if overflow menu is shown
-        Intent launcherIntent = new Intent(Intent.ACTION_MAIN);
-        launcherIntent.addCategory(Intent.CATEGORY_HOME);
-        launcherIntent.addCategory(Intent.CATEGORY_DEFAULT);
-        ActivityInfo defaultLauncher = getPackageManager().resolveActivity(launcherIntent, PackageManager.MATCH_DEFAULT_ONLY).activityInfo;
-        // Hide preferences if not on CyanogenMod or not default launcher
-        // (in which case preferences don't get shown in system settings)
-        boolean preferencesVisible = !getPackageManager().hasSystemFeature("com.cyanogenmod.android") ||
-                !defaultLauncher.packageName.equals(getClass().getPackage().getName());
-        if (activityName != null && (ViewConfiguration.get(this).hasPermanentMenuKey() || !preferencesVisible)) {
+        if (activityName != null) {
             int coi = getCurrentOrientationIndexForGlobalIcons();
             mAppMarketIntent = intent;
             sAppMarketIcon[coi] = updateTextButtonWithIconFromExternalActivity(
@@ -3374,12 +3458,10 @@ public final class Launcher extends Activity
         // (in which case preferences don't get shown in system settings)
         boolean preferencesVisible = !getPackageManager().hasSystemFeature("com.cyanogenmod.android") ||
                 !defaultLauncher.packageName.equals(getClass().getPackage().getName());
-        if (ViewConfiguration.get(this).hasPermanentMenuKey() || !preferencesVisible) {
-            overflowMenuButton.setVisibility(View.GONE);
-            overflowMenuButton.setEnabled(false);
-        } else {
-            overflowMenuButton.setVisibility(View.VISIBLE);
-        }
+
+        boolean disabled = ViewConfiguration.get(this).hasPermanentMenuKey() || !preferencesVisible;
+        overflowMenuButton.setVisibility(disabled ? View.GONE : View.VISIBLE);
+        overflowMenuButton.setEnabled(!disabled);
     }
 
     /**
@@ -3703,9 +3785,6 @@ public final class Launcher extends Activity
                             .commit();
             }
         }.start();
-
-        // Hide overflow menu on devices with a hardkey
-        updateOverflowMenuButton();
     }
 
     @Override
@@ -3747,6 +3826,9 @@ public final class Launcher extends Activity
             // list of applications without waiting for any progress bars views to be hidden.
             setAllAppsRunnable.run();
         }
+
+        // Hide overflow menu on devices with a hardkey
+        updateOverflowMenuButton();
     }
 
     /**
