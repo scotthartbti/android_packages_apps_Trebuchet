@@ -286,7 +286,9 @@ public class Workspace extends PagedView
         Stack,
         Accordion,
         CylinderIn,
-        CylinderOut
+        CylinderOut,
+        CarouselLeft,
+        CarouselRight
     }
     private TransitionEffect mTransitionEffect = TransitionEffect.Standard;
 
@@ -1663,6 +1665,26 @@ public class Workspace extends PagedView
         }
     }
 
+    private void screenScrolledCarousel(int screenScroll, boolean left) {
+        for (int i = 0; i < getChildCount(); i++) {
+            CellLayout cl = (CellLayout) getPageAt(i);
+            if (cl != null) {
+                float scrollProgress = getScrollProgress(screenScroll, cl, i);
+                float rotation = 90.0f * -scrollProgress;
+
+                cl.setCameraDistance(mDensity * mCameraDistance);
+                cl.setTranslationX(cl.getMeasuredWidth() * scrollProgress);
+                cl.setPivotX(left ? 0f : cl.getMeasuredWidth());
+                cl.setPivotY(cl.getMeasuredHeight() / 2);
+                cl.setRotationY(rotation);
+
+                if (mFadeInAdjacentScreens && !isSmall()) {
+                    setCellLayoutFadeAdjacent(cl, scrollProgress);
+                }
+            }
+        }
+    }
+
     @Override
     protected void screenScrolled(int screenScroll) {
         super.screenScrolled(screenScroll);
@@ -1740,6 +1762,12 @@ public class Workspace extends PagedView
                         break;
                     case CylinderOut:
                         screenScrolledCylinder(scroll, false);
+                        break;
+                    case CarouselLeft:
+                        screenScrolledCarousel(scroll, true);
+                        break;
+                    case CarouselRight:
+                        screenScrolledCarousel(scroll, false);
                         break;
                 }
                 mScrollTransformsDirty = false;
@@ -1836,7 +1864,7 @@ public class Workspace extends PagedView
                 // Wallpaper is smaller than screen
                 y += (height - wallpaperHeight) / 2;
             } else {
-                y -= (wallpaperHeight - (height + mWallpaperOffsets[1])) / 2;
+                y -= mWallpaperScrollY * (wallpaperHeight - (height + mWallpaperOffsets[1])) + mWallpaperOffsets[1];
             }
 
             canvas.drawBitmap(mWallpaperBitmap, x, y, mPaint);
@@ -2244,6 +2272,15 @@ public class Workspace extends PagedView
                     rotationY = mTransitionEffect == TransitionEffect.CylinderOut ? -WORKSPACE_ROTATION : WORKSPACE_ROTATION;
                 } else if (i > mCurrentPage) {
                     rotationY = mTransitionEffect == TransitionEffect.CylinderOut ? WORKSPACE_ROTATION : -WORKSPACE_ROTATION;
+                }
+            }
+
+            // Carousel Effects
+            if (mTransitionEffect == TransitionEffect.CarouselLeft || mTransitionEffect == TransitionEffect.CarouselRight && stateIsNormal) {
+                if (i < mCurrentPage) {
+                    rotationY = 90.0f;
+                } else if (i > mCurrentPage) {
+                    rotationY = -90.0f;
                 }
             }
 
@@ -2757,10 +2794,12 @@ public class Workspace extends PagedView
 
         if (v == null || hasntMoved || !mCreateUserFolderOnDrop) return false;
         mCreateUserFolderOnDrop = false;
-        final int screen = (targetCell == null) ? mDragInfo.screen :
-                (mLauncher.isHotseatLayout(target) ?
-                mLauncher.getHotseat().indexOfChild(target) :
-                indexOfChild(target));
+        final int screen =
+            (targetCell == null) ?
+                    mDragInfo.screen :
+                    (mLauncher.isHotseatLayout(target) ?
+                            mLauncher.getHotseat().getScreenFromOrder(mLauncher.getHotseat().indexOfChild(target)) :
+                            indexOfChild(target));
 
         boolean aboveShortcut = (v.getTag() instanceof ShortcutInfo);
         boolean willBecomeShortcut = (newView.getTag() instanceof ShortcutInfo);
@@ -2853,10 +2892,12 @@ public class Workspace extends PagedView
                 long container = hasMovedIntoHotseat ?
                         LauncherSettings.Favorites.CONTAINER_HOTSEAT :
                         LauncherSettings.Favorites.CONTAINER_DESKTOP;
-                int screen = (mTargetCell[0] < 0) ?
-                        mDragInfo.screen : (hasMovedIntoHotseat ?
-                        mLauncher.getHotseat().indexOfChild(dropTargetLayout) :
-                        indexOfChild(dropTargetLayout));
+                int screen =
+                        (mTargetCell[0] < 0) ?
+                                mDragInfo.screen :
+                                (hasMovedIntoHotseat ?
+                                      mLauncher.getHotseat().getScreenFromOrder(mLauncher.getHotseat().indexOfChild(dropTargetLayout)) :
+                                      indexOfChild(dropTargetLayout));
                 int spanX = mDragInfo != null ? mDragInfo.spanX : 1;
                 int spanY = mDragInfo != null ? mDragInfo.spanY : 1;
                 // First we find the cell nearest to point at which the item is
@@ -2910,7 +2951,8 @@ public class Workspace extends PagedView
                 if (mCurrentPage != screen && !hasMovedIntoHotseat) {
                     snapScreen = screen;
                     snapToPage(screen);
-                } else if (mLauncher.getHotseat().getCurrentPage() != screen && hasMovedIntoHotseat) {
+                } else if (hasMovedIntoHotseat &&
+                           mLauncher.getHotseat().getScreenFromOrder(mLauncher.getHotseat().getCurrentPage()) != screen) {
                     mLauncher.getHotseat().snapToPage(screen);
                 }
 
@@ -3258,10 +3300,17 @@ public class Workspace extends PagedView
        xy[1] -= (getScrollY() - v.getTop());
    }
 
-   static float squaredDistance(float[] point1, float[] point2) {
-        float distanceX = point1[0] - point2[0];
-        float distanceY = point2[1] - point2[1];
-        return distanceX * distanceX + distanceY * distanceY;
+   static float squaredDistance(float[] point1, float[] point2, boolean spatial) {
+       // Horizontal
+       if (!spatial) {
+           float distanceX = point1[0] - point2[0];
+           float distanceY = point2[1] - point2[1];
+           return distanceX * distanceX + distanceY * distanceY;
+       }
+       // Spatial xy
+       double distanceX = Math.pow(point2[0] - point2[1], 2);
+       double distanceY = Math.pow(point2[1] - point2[0], 2);
+       return (float)Math.sqrt(distanceX + distanceY);
    }
 
     /**
@@ -3304,7 +3353,7 @@ public class Workspace extends PagedView
 
                 // Calculate the distance between the center of the CellLayout
                 // and the touch point
-                float dist = squaredDistance(touchXy, cellLayoutCenter);
+                float dist = squaredDistance(touchXy, cellLayoutCenter, false);
 
                 if (dist < smallestDistSoFar) {
                     smallestDistSoFar = dist;
@@ -3629,13 +3678,15 @@ public class Workspace extends PagedView
         final long container = mLauncher.isHotseatLayout(cellLayout) ?
                 LauncherSettings.Favorites.CONTAINER_HOTSEAT :
                     LauncherSettings.Favorites.CONTAINER_DESKTOP;
-        final int screen = mLauncher.isHotseatLayout(cellLayout) ?
-                mLauncher.getHotseat().indexOfChild(cellLayout) :
+        final int screen =
+            mLauncher.isHotseatLayout(cellLayout) ?
+                mLauncher.getHotseat().getScreenFromOrder(mLauncher.getHotseat().indexOfChild(cellLayout)) :
                 indexOfChild(cellLayout);
         if (mState != State.SPRING_LOADED) {
             if (!mLauncher.isHotseatLayout(cellLayout) && screen != mCurrentPage) {
                 snapToPage(screen);
-            } else if (mLauncher.isHotseatLayout(cellLayout) && screen != mLauncher.getHotseat().getCurrentPage()) {
+            } else if (mLauncher.isHotseatLayout(cellLayout) && screen !=
+                       mLauncher.getHotseat().getScreenFromOrder(mLauncher.getHotseat().getCurrentPage())) {
                 mLauncher.getHotseat().snapToPage(screen);
             }
         }
@@ -3773,8 +3824,9 @@ public class Workspace extends PagedView
                     info.spanY, insertAtFirst);
             cellLayout.onDropChild(view);
             CellLayout.LayoutParams lp = (CellLayout.LayoutParams) view.getLayoutParams();
+            lp.cellX = mTargetCell[0];
+            lp.cellY = mTargetCell[1];
             cellLayout.getShortcutsAndWidgets().measureChild(view);
-
 
             LauncherModel.addOrMoveItemInDatabase(mLauncher, info, container, screen,
                     lp.cellX, lp.cellY);
@@ -4008,7 +4060,7 @@ public class Workspace extends PagedView
         int container = Favorites.CONTAINER_DESKTOP;
 
         if (mLauncher.isHotseatLayout(cl)) {
-            screen = mLauncher.getHotseat().indexOfChild(cl);
+            screen = mLauncher.getHotseat().getScreenFromOrder(mLauncher.getHotseat().indexOfChild(cl));
             container = Favorites.CONTAINER_HOTSEAT;
         }
 
