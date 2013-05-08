@@ -17,7 +17,7 @@
     <!-- App copyright -->
     <string name="application_copyright">Copyright \u00A9 2013 The CyanogenMod Project</string>
     <!-- App version -->
-    <string name="application_version">1.0</string>
+    <string name="application_version" translatable="false">1.0</string>
 
     <!-- Menu button text. -->
     <string name="menu">Menu</string>
@@ -27,6 +27,11 @@
 
     <!-- Label for the info icon. [CHAR_LIMIT=30] -->
     <string name="edit_target_label">Edit</string>
+
+    <!-- Menu item used to lock workspace -->
+    <string name="menu_lock_workspace">Lock homescreen</string>
+    <!-- Menu item used to unlock workspace -->
+    <string name="menu_unlock_workspace">Unlock homescreen</string>
 
     <!-- Noun, menu item used to show the launcher preferences -->
     <string name="menu_preferences">Trebuchet settings</string>
@@ -50,6 +55,9 @@
 
     <!-- Hidden apps -->
     <string name="hidden_apps_title">Hidden apps</string>
+
+    <!-- Workspace is locked -->
+    <string name="workspace_locked">Homescreen is locked, unlock in settings to rearrange</string>
 
     <!-- Settings -->
     <string name="preferences_title">Settings</string>
@@ -131,6 +139,8 @@
     <string name="preferences_interface_dock_default_page_summary">Choose the default page</string>
     <string name="preferences_interface_dock_icons_title">Icons</string>
     <string name="preferences_interface_dock_icons_summary">Number of icons/columns in the dock</string>
+    <string name="preferences_interface_dock_hide_icon_labels_title">Hide icon labels</string>
+    <string name="preferences_interface_dock_hide_icon_labels_summary">Hide dock icon labels</string>
     <string name="preferences_interface_dock_icon_scale_title">Icon scale</string>
     <string name="preferences_interface_dock_icon_scale_summary">Scale of icons in the dock</string>
     <string name="preferences_interface_dock_divider_title">Show dock divider</string>
@@ -142,6 +152,8 @@
     <!-- General -->
     <string name="preferences_interface_general_title">General</string>
     <string name="preferences_interface_general_orientation_title">Auto-rotate screen</string>
+    <string name="preferences_interface_general_lock_workspace_title">Lock homescreen</string>
+    <string name="preferences_interface_general_lock_workspace_summary">Lock shortcuts and folders positions in the homescreen, dock and apps and widgets drawer</string>
     <string name="preferences_interface_general_fullscreen_title">Fullscreen mode</string>
     <string name="preferences_interface_general_fullscreen_summary">Hide the status bar to extend the homescreen</string>
 

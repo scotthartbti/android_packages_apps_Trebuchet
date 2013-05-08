@@ -30,6 +30,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;
@@ -306,6 +307,7 @@ public class Workspace extends PagedView
     private boolean mShowHotseat;
     private boolean mResizeAnyWidget;
     private boolean mHideIconLabels;
+    private boolean mHideDockIconLabels;
     private boolean mScrollWallpaper;
     private int mWallpaperSize;
     private boolean mShowScrollingIndicator;
@@ -393,6 +395,12 @@ public class Workspace extends PagedView
         mShowSearchBar = PreferencesProvider.Interface.Homescreen.getShowSearchBar();
         mShowHotseat = PreferencesProvider.Interface.Dock.getShowDock();
         mHideIconLabels = PreferencesProvider.Interface.Homescreen.getHideIconLabels();
+        boolean showHotseat = PreferencesProvider.Interface.Dock.getShowDock();
+        boolean verticalHotseat =
+                res.getBoolean(R.bool.hotseat_transpose_layout_with_orientation) &&
+                res.getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+        mHideDockIconLabels = PreferencesProvider.Interface.Dock.getHideIconLabels() ||
+                (!showHotseat || (verticalHotseat && !LauncherApplication.isScreenLarge()));
         mTransitionEffect = PreferencesProvider.Interface.Homescreen.Scrolling.getTransitionEffect(
                 res.getString(R.string.config_workspaceDefaultTransitionEffect));
         mScrollWallpaper = PreferencesProvider.Interface.Homescreen.Scrolling.getScrollWallpaper();
@@ -678,24 +686,15 @@ public class Workspace extends PagedView
 
             // Hide titles in the hotseat
             if (child instanceof FolderIcon) {
-                ((FolderIcon) child).setTextVisible(false);
+                ((FolderIcon) child).setTextVisible(!mHideDockIconLabels);
             } else if (child instanceof BubbleTextView) {
-                ((BubbleTextView) child).setTextVisible(false);
+                ((BubbleTextView) child).setTextVisible(!mHideDockIconLabels);
             }
         } else {
-            if (!mHideIconLabels) {
-                // Show titles if not in the hotseat
-                if (child instanceof FolderIcon) {
-                    ((FolderIcon) child).setTextVisible(true);
-                } else if (child instanceof BubbleTextView) {
-                    ((BubbleTextView) child).setTextVisible(true);
-                }
-            } else {
-                if (child instanceof FolderIcon) {
-                    ((FolderIcon) child).setTextVisible(false);
-                } else if (child instanceof BubbleTextView) {
-                    ((BubbleTextView) child).setTextVisible(false);
-                }
+            if (child instanceof FolderIcon) {
+                ((FolderIcon) child).setTextVisible(!mHideIconLabels);
+            } else if (child instanceof BubbleTextView) {
+                ((BubbleTextView) child).setTextVisible(!mHideIconLabels);
             }
 
             layout = (CellLayout) getChildAt(screen);
@@ -1833,6 +1832,7 @@ public class Workspace extends PagedView
     protected void onSizeChanged (int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
 
+        setupWallpaper();
         getLocationOnScreen(mWallpaperOffsets);
     }
 
@@ -3786,9 +3786,7 @@ public class Workspace extends PagedView
             case LauncherSettings.Favorites.ITEM_TYPE_FOLDER:
                 view = FolderIcon.fromXml(R.layout.folder_icon, mLauncher, cellLayout,
                         (FolderInfo) info);
-                if (mHideIconLabels) {
-                    ((FolderIcon) view).setTextVisible(false);
-                }
+                ((FolderIcon) view).setTextVisible(!mHideIconLabels);
                 break;
             default:
                 throw new IllegalStateException("Unknown item type: " + info.itemType);
@@ -4012,12 +4010,16 @@ public class Workspace extends PagedView
         // hardware layers on children are enabled on startup, but should be disabled until
         // needed
         updateChildrenLayersEnabled(false);
+        setupWallpaper();
+
+        mIsLandscape = LauncherApplication.isScreenLandscape(mLauncher);
+    }
+
+    void setupWallpaper() {
         setWallpaperDimension();
         if (!mScrollWallpaper) {
             centerWallpaperOffset();
         }
-
-        mIsLandscape = LauncherApplication.isScreenLandscape(mLauncher);
     }
 
     /**
