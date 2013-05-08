@@ -1471,12 +1471,11 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
                 // move to the left and fling to the right will register as a fling to the right.
                 if (!mVertical) {
                     if (((isSignificantMove && deltaX > 0 && !isFling) ||
-                            (isFling && velocityX > 0)) && mCurrentPage > 0) {
+                            (isFling && velocityX > 0))) {
                         finalPage = returnToOriginalPage ? mCurrentPage : mCurrentPage - 1;
                         snapToPageWithVelocity(finalPage, velocityX);
                     } else if (((isSignificantMove && deltaX < 0 && !isFling) ||
-                            (isFling && velocityX < 0)) &&
-                            mCurrentPage < getChildCount() - 1) {
+                            (isFling && velocityX < 0))) {
                         finalPage = returnToOriginalPage ? mCurrentPage : mCurrentPage + 1;
                         snapToPageWithVelocity(finalPage, velocityX);
                     } else {
@@ -1484,12 +1483,11 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
                     }
                 } else {
                     if (((isSignificantMove && deltaY > 0 && !isFling) ||
-                            (isFling && velocityY > 0)) && mCurrentPage > 0) {
+                            (isFling && velocityY > 0))) {
                         finalPage = returnToOriginalPage ? mCurrentPage : mCurrentPage - 1;
                         snapToPageWithVelocity(finalPage, velocityY);
                     } else if (((isSignificantMove && deltaY < 0 && !isFling) ||
-                            (isFling && velocityY < 0)) &&
-                            mCurrentPage < getChildCount() - 1) {
+                            (isFling && velocityY < 0))) {
                         finalPage = returnToOriginalPage ? mCurrentPage : mCurrentPage + 1;
                         snapToPageWithVelocity(finalPage, velocityY);
                     } else {
@@ -1735,7 +1733,11 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
     }
 
     protected void snapToPageWithVelocity(int whichPage, int velocity) {
-        whichPage = Math.max(0, Math.min(whichPage, getChildCount() - 1));
+        if (whichPage < 0) {
+            whichPage = getChildCount() - 1;
+        } else if (whichPage > getChildCount() - 1) {
+            whichPage = 0;
+        }
         int halfScreenSize = (!mVertical ? getMeasuredWidth() : getMeasuredHeight()) / 2;
 
         if (DEBUG) Log.d(TAG, "snapToPage.getChildOffset(): " + getChildOffset(whichPage));

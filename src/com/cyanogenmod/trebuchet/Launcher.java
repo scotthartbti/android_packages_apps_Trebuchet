@@ -1581,18 +1581,20 @@ public final class Launcher extends Activity
             // also will cancel mWaitingForResult.
             closeSystemDialogs();
 
-            final boolean drawerIntent = intent.hasCategory("com.cyanogenmod.trebuchet.APP_DRAWER");
-            ActivityManager am = (ActivityManager) getSystemService(Activity.ACTIVITY_SERVICE);
-            try {
-                mDrawerBackActivity = am.getRunningTasks(2).get(1).topActivity.flattenToString();
-            } catch (Exception e) {
-                mDrawerBackActivity = "";
-            }
-            if (mDrawerBackActivity.contains("trebuchet")) mDrawerBackActivity = "";
-
             final boolean alreadyOnHome =
                     ((intent.getFlags() & Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT)
                         != Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT);
+
+            final boolean drawerIntent = intent.hasCategory("com.cyanogenmod.trebuchet.APP_DRAWER");
+            ActivityManager am = (ActivityManager) getSystemService(Activity.ACTIVITY_SERVICE);
+            //if (!alreadyOnHome) {
+                try {
+                    mDrawerBackActivity = am.getRunningTasks(2).get(1).topActivity.flattenToString();
+                } catch (Exception e) {
+                    mDrawerBackActivity = "";
+                }
+                if (mDrawerBackActivity.contains("trebuchet")) mDrawerBackActivity = "";
+            //}
 
             Runnable processIntent = new Runnable() {
                 public void run() {
@@ -1616,6 +1618,8 @@ public final class Launcher extends Activity
                     // otherwise, just wait until onResume to set the state back to Workspace
                     if (alreadyOnHome && !drawerIntent) {
                         showWorkspace(true);
+                    } else if (alreadyOnHome && drawerIntent && isAllAppsVisible()) {
+                        onBackPressed();
                     } else {
                         mOnResumeState = drawerIntent ? State.APPS_CUSTOMIZE : State.WORKSPACE;
                     }
@@ -2141,7 +2145,10 @@ public final class Launcher extends Activity
             launchIntent.setComponent(ComponentName.unflattenFromString(mDrawerBackActivity));
             launchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             mDrawerBackActivity = "";
-            startActivity(launchIntent);
+            ActivityOptions opts = ActivityOptions.makeCustomAnimation(getApplication(),
+                    com.android.internal.R.anim.slide_in_left,
+                    com.android.internal.R.anim.slide_out_right);
+            startActivity(launchIntent, opts.toBundle());
             return;
         }
 
