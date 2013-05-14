@@ -15,16 +15,16 @@
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string-array name="preferences_interface_homescreen_indicator_position_entries">
-        <item>Estándar</item>
-        <item>Arriba</item>
-        <item>Abajo</item>
+        <item>Tálca felett</item>
+        <item>Fent</item>
+        <item>Lent</item>
     </string-array>
     <string-array name="preferences_interface_drawer_indicator_position_entries">
-        <item>Arriba/Izquierda</item>
-        <item>Abajo/Derecha</item>
+        <item>Oldal tetején / Bal oldalon</item>
+        <item>Oldal alján / Jobb oldalon</item>
     </string-array>
     <string-array name="preferences_interface_drawer_orientation_entries">
-        <item>Horizontal</item>
-        <item>Vertical</item>
+        <item>Vízszintes</item>
+        <item>Függőleges</item>
     </string-array>
 </resources>
