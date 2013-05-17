@@ -1640,6 +1640,8 @@ public final class Launcher extends Activity
                         showWorkspace(true);
                     } else if (alreadyOnHome && drawerIntent && isAllAppsVisible()) {
                         onBackPressed();
+                    } else if (alreadyOnHome && drawerIntent) {
+                        showAllApps(true);
                     } else {
                         mOnResumeState = drawerIntent ? State.APPS_CUSTOMIZE : State.WORKSPACE;
                     }
