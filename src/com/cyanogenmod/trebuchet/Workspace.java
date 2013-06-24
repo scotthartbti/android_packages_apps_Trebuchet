@@ -165,6 +165,8 @@ public class Workspace extends PagedView
     private SpringLoadedDragController mSpringLoadedDragController;
     private float mSpringLoadedShrinkFactor;
 
+    private static final int DEFAULT_HOMESCREEN = 2;
+
     private static final int DEFAULT_CELL_COUNT_X = 4;
     private static final int DEFAULT_CELL_COUNT_Y = 4;
 
@@ -385,7 +387,7 @@ public class Workspace extends PagedView
 
         // Preferences
         mNumberHomescreens = PreferencesProvider.Interface.Homescreen.getNumberHomescreens();
-        mDefaultHomescreen = PreferencesProvider.Interface.Homescreen.getDefaultHomescreen(mNumberHomescreens / 2);
+        mDefaultHomescreen = PreferencesProvider.Interface.Homescreen.getDefaultHomescreen(DEFAULT_HOMESCREEN);
         if (mDefaultHomescreen >= mNumberHomescreens) {
             mDefaultHomescreen = mNumberHomescreens / 2;
         }
@@ -1564,18 +1566,22 @@ public class Workspace extends PagedView
                     // On large screens we need to fade the page as it nears its leftmost position
                     alpha = mLeftScreenAlphaInterpolator.getInterpolation(1 - scrollProgress);
                 }
-
                 cl.setTranslationX(translationX);
                 cl.setScaleX(scale);
                 cl.setScaleY(scale);
                 cl.setAlpha(alpha);
 
                 // If the view has 0 alpha, we set it to be invisible so as to prevent
-                // it from accepting touches
+                // it from accepting touches. Move the view to its original position to
+                // prevent overlap between views
                 if (alpha <= 0) {
                     cl.setVisibility(INVISIBLE);
+                    cl.setTranslationX(0);
                 } else if (cl.getVisibility() != VISIBLE) {
                     cl.setVisibility(VISIBLE);
+                }
+                if (mFadeInAdjacentScreens && !isSmall()) {
+                    setCellLayoutFadeAdjacent(cl, scrollProgress);
                 }
             }
         }
@@ -2226,8 +2232,16 @@ public class Workspace extends PagedView
                 if (mTransitionEffect == TransitionEffect.Stack) {
                     if (i <= mCurrentPage) {
                         cl.setVisibility(VISIBLE);
+                        cl.setAlpha(1.0f);
+                        if (mFadeInAdjacentScreens) {
+                            setCellLayoutFadeAdjacent(cl, 0.0f);
+                        }
                     } else {
                         cl.setVisibility(INVISIBLE);
+                        cl.setAlpha(0.0f);
+                        if (mFadeInAdjacentScreens) {
+                            setCellLayoutFadeAdjacent(cl, 1.0f);
+                        }
                     }
                 }
 
@@ -2289,6 +2303,14 @@ public class Workspace extends PagedView
                 cl.setPivotX(cl.getMeasuredWidth() * 0.5f);
                 cl.setPivotY(cl.getMeasuredHeight() * 0.5f);
                 cl.setVisibility(VISIBLE);
+
+                // Stack Effect
+                if (mTransitionEffect == TransitionEffect.Stack) {
+                    cl.setAlpha(1.0f);
+                    if (mFadeInAdjacentScreens) {
+                        setCellLayoutFadeAdjacent(cl, 0.0f);
+                    }
+                }
             }
 
             // Determine the pages alpha during the state transition
